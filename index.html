@@ -1,82 +1,423 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, "Segoe UI", sans-serif; background: rgba(30,30,35,0.95); color: #e8e8e8; padding: 20px; height: 100vh; display: flex; flex-direction: column; gap: 16px; }
-    h1 { font-size: 18px; }
-    .row { display: flex; align-items: center; gap: 12px; }
-    label { font-size: 13px; color: #999; width: 80px; flex-shrink: 0; }
-    input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 8px 12px; color: #e8e8e8; font-family: "Cascadia Code", monospace; font-size: 13px; outline: none; }
-    input:focus { border-color: #4a9eff; }
-    button { background: #4a9eff; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit; }
-    button:hover { background: #3a8ee5; }
-    .now { font-size: 24px; font-family: "Cascadia Code", monospace; color: #4a9eff; text-align: center; padding: 16px; background: rgba(255,255,255,0.05); border-radius: 8px; }
-    .result { font-size: 12px; color: #999; }
-  </style>
+<meta charset="UTF-8" />
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif; background: #1a1a1e; color: #e8e8e8; padding: 16px; height: 100vh; overflow-y: auto; }
+#app { max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+
+/* live bar */
+#liveBar { display: flex; align-items: center; gap: 8px; background: #222226; border-radius: 10px; padding: 10px 14px; border: 1px solid #2a2a32; }
+#liveBar .label { font-size: 12px; color: #666; }
+#liveBar .value { font-family: "JetBrains Mono", "Cascadia Code", monospace; font-size: 20px; color: #4a9eff; letter-spacing: 1px; }
+#liveBar .dot { width: 6px; height: 6px; background: #4ade80; border-radius: 50%; transition: opacity .5s; }
+#liveBar .hint { font-size: 11px; color: #555; margin-left: auto; }
+
+/* input */
+#inputSection { position: relative; }
+#inputField { width: 100%; background: #222226; border: 1px solid #2a2a32; border-radius: 10px; padding: 10px 14px; color: #e8e8e8; font-family: "JetBrains Mono", "Cascadia Code", monospace; font-size: 14px; outline: none; transition: border-color .15s; }
+#inputField:focus { border-color: #4a9eff; }
+#inputField::placeholder { color: #444; }
+#detectHint { font-size: 11px; color: #555; margin-top: 4px; padding-left: 2px; transition: color .15s; }
+#detectHint.error { color: #ff4d4d; }
+
+/* section titles */
+.section-title { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #666; padding: 0 2px; margin-bottom: 6px; }
+
+/* outputs */
+#fixedOutputs, #templateSection { background: #222226; border-radius: 10px; padding: 12px 14px; border: 1px solid #2a2a32; }
+.output-row, .template-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #2a2a30; }
+.output-row:last-child, .template-row:last-child { border-bottom: none; }
+.output-label { font-size: 11px; color: #666; width: 60px; flex-shrink: 0; }
+.output-value { flex: 1; font-family: "JetBrains Mono", "Cascadia Code", monospace; font-size: 13px; color: #ccc; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.template-format { font-size: 11px; color: #888; width: 130px; flex-shrink: 0; cursor: text; padding: 2px 4px; border-radius: 4px; outline: none; font-family: "JetBrains Mono", "Cascadia Code", monospace; }
+.template-format:focus { background: rgba(74,158,255,.08); color: #4a9eff; }
+.template-value { flex: 1; font-family: "JetBrains Mono", "Cascadia Code", monospace; font-size: 13px; color: #ccc; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* buttons */
+.copy-btn { background: none; border: none; cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 4px; color: #555; transition: all .15s; flex-shrink: 0; }
+.copy-btn:hover { background: rgba(74,158,255,.1); color: #4a9eff; }
+.copy-btn.copied { color: #4ade80; }
+.del-btn { background: none; border: none; cursor: pointer; font-size: 11px; padding: 2px 6px; border-radius: 4px; color: #555; flex-shrink: 0; }
+.del-btn:hover { background: rgba(255,77,77,.1); color: #ff4d4d; }
+#addTemplateBtn { background: none; border: 1px dashed #333; border-radius: 6px; padding: 4px 12px; font-size: 11px; color: #666; cursor: pointer; font-family: inherit; transition: all .15s; }
+#addTemplateBtn:hover { border-color: #4a9eff; color: #4a9eff; }
+
+/* message */
+#message { font-size: 12px; color: #ff4d4d; text-align: center; min-height: 0; }
+</style>
 </head>
 <body>
-  <h1>时间戳转换</h1>
-  <div class="now" id="now"></div>
-  <div class="row">
-    <label>时间戳</label>
-    <input id="ts" placeholder="如 1690000000" />
-    <button onclick="tsToDate()">→ 日期</button>
+<div id="app">
+  <div id="liveBar">
+    <span class="label">当前:</span>
+    <span class="value" id="liveTs">0</span>
+    <span class="dot" id="liveDot"></span>
+    <span class="hint">实时</span>
   </div>
-  <div class="row">
-    <label>日期</label>
-    <input id="date" placeholder="如 2024-01-01 12:00:00" />
-    <button onclick="dateToTs()">→ 时间戳</button>
+
+  <div id="inputSection">
+    <input id="inputField" placeholder="粘贴时间戳或日期..." />
+    <div id="detectHint"></div>
   </div>
-  <div class="result" id="result"></div>
-  <script>
-    var ipcId = 0, pending = {};
-    function invoke(cmd, args) {
-      return new Promise(function(resolve, reject) {
-        var id = ++ipcId; pending[id] = { resolve: resolve, reject: reject };
-        window.parent.postMessage({ source: "action-quick-plugin", id: id, cmd: cmd, args: args || {} }, "*");
-      });
-    }
-    window.addEventListener("message", function(e) {
-      var d = e.data;
-      if (!d || d.source !== "action-quick-host") return;
-      if (d.type === "aq-init-bridge" && d.script) { try { eval(d.script); } catch(x){} return; }
-      if (d.type === "plugin-params" && d.params.contextText) {
-        document.getElementById("ts").value = d.params.contextText.trim();
-        tsToDate();
-      }
-      if (d.id && pending[d.id]) { var c = pending[d.id]; delete pending[d.id]; d.error ? c.reject(d.error) : c.resolve(d.result); }
+
+  <div id="fixedOutputs">
+    <div class="section-title">输出结果</div>
+    <div id="outputList"></div>
+  </div>
+
+  <div id="templateSection">
+    <div class="section-title">
+      <span>自定义模板</span>
+      <button id="addTemplateBtn">+ 添加新模板</button>
+    </div>
+    <div id="templateList"></div>
+  </div>
+
+  <div id="message"></div>
+</div>
+
+<script>
+/* === Bridge === */
+var ipcId = 0, pending = {};
+function invoke(cmd, args) {
+  return new Promise(function(resolve, reject) {
+    var id = ++ipcId;
+    pending[id] = { resolve: resolve, reject: reject };
+    window.parent.postMessage({ source: 'action-quick-plugin', id: id, cmd: cmd, args: args || {} }, '*');
+  });
+}
+
+/* === Date Format Engine === */
+function pad(n, width) {
+  width = width || 2;
+  n = String(n);
+  while (n.length < width) n = '0' + n;
+  return n;
+}
+
+function timezoneOffset(date) {
+  var offset = -date.getTimezoneOffset();
+  var sign = offset >= 0 ? '+' : '-';
+  var h = pad(Math.floor(Math.abs(offset) / 60));
+  var m = pad(Math.abs(offset) % 60);
+  return sign + h + m;
+}
+
+function formatDate(date, fmt) {
+  var map = {
+    'yyyy': date.getFullYear(),
+    'yy': String(date.getFullYear()).slice(2),
+    'MM': pad(date.getMonth() + 1),
+    'M': date.getMonth() + 1,
+    'dd': pad(date.getDate()),
+    'd': date.getDate(),
+    'HH': pad(date.getHours()),
+    'H': date.getHours(),
+    'mm': pad(date.getMinutes()),
+    'ss': pad(date.getSeconds()),
+    'SSS': pad(date.getMilliseconds(), 3),
+    'ZZ': timezoneOffset(date),
+  };
+  var result = fmt;
+  for (var key in map) {
+    result = result.split(key).join(map[key]);
+  }
+  return result;
+}
+
+var WEEKDAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var WEEKDAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+function formatISO(date) {
+  return date.getFullYear() + '-' + pad(date.getMonth()+1) + '-' + pad(date.getDate())
+    + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds())
+    + '.' + pad(date.getMilliseconds(), 3) + 'Z';
+}
+
+function formatRFC(date) {
+  var dow = WEEKDAYS_SHORT[date.getUTCDay()];
+  var mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][date.getUTCMonth()];
+  var d = pad(date.getUTCDate());
+  var h = pad(date.getUTCHours());
+  var m = pad(date.getUTCMinutes());
+  var s = pad(date.getUTCSeconds());
+  return dow + ', ' + d + ' ' + mon + ' ' + date.getUTCFullYear() + ' ' + h + ':' + m + ':' + s + ' +0000';
+}
+
+function formatUTC(date) {
+  return formatRFC(date).replace(' +0000', ' GMT');
+}
+
+function formatRelative(date) {
+  var now = Date.now();
+  var diff = date.getTime() - now;
+  var abs = Math.abs(diff);
+  var suffix = diff >= 0 ? '后' : '前';
+  var units = [
+    [365 * 86400000, '年'],
+    [30 * 86400000, '个月'],
+    [7 * 86400000, '周'],
+    [86400000, '天'],
+    [3600000, '小时'],
+    [60000, '分钟'],
+  ];
+  for (var i = 0; i < units.length; i++) {
+    var val = Math.floor(abs / units[i][0]);
+    if (val >= 1) return val + ' ' + units[i][1] + suffix;
+  }
+  return '刚刚';
+}
+
+/* === Parser === */
+function parseInput(text) {
+  text = text.trim();
+  if (!text) return null;
+  if (/^\d{10}$/.test(text)) return new Date(parseInt(text) * 1000);
+  if (/^\d{13}$/.test(text)) return new Date(parseInt(text));
+  if (/^\d+$/.test(text)) {
+    var n = parseInt(text);
+    return n > 1e12 ? new Date(n) : new Date(n * 1000);
+  }
+  var d = new Date(text);
+  if (!isNaN(d.getTime())) return d;
+  return null;
+}
+
+function detectType(text) {
+  if (/^\d{10}$/.test(text)) return 'Unix 秒';
+  if (/^\d{13}$/.test(text)) return 'Unix 毫秒';
+  if (/^\d+$/.test(text)) return '数字';
+  return '日期字符串';
+}
+
+/* === Output Rendering === */
+var FIXED_FORMATS = [
+  { label: '本地时间', render: function(d) { return formatDate(d, 'yyyy-MM-dd HH:mm:ss'); } },
+  { label: 'ISO 8601', render: formatISO },
+  { label: 'Unix 秒',  render: function(d) { return String(Math.floor(d.getTime() / 1000)); } },
+  { label: 'Unix 毫秒',render: function(d) { return String(d.getTime()); } },
+  { label: '相对时间', render: formatRelative },
+];
+
+function copyText(text, btn) {
+  invoke('clipboard_write', { text: text }).then(function() {
+    var orig = btn.textContent;
+    btn.textContent = '✓';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = orig;
+      btn.classList.remove('copied');
+    }, 1000);
+  }).catch(function() {});
+}
+
+function createOutputRow(label, value) {
+  var row = document.createElement('div');
+  row.className = 'output-row';
+  var lbl = document.createElement('span');
+  lbl.className = 'output-label';
+  lbl.textContent = label;
+  var val = document.createElement('span');
+  val.className = 'output-value';
+  val.textContent = value;
+  var btn = document.createElement('button');
+  btn.className = 'copy-btn';
+  btn.textContent = '📋';
+  btn.title = '复制';
+  btn.addEventListener('click', function() { copyText(value, btn); });
+  row.appendChild(lbl);
+  row.appendChild(val);
+  row.appendChild(btn);
+  return row;
+}
+
+function renderFixedOutputs(date) {
+  var list = document.getElementById('outputList');
+  list.innerHTML = '';
+  FIXED_FORMATS.forEach(function(fmt) {
+    list.appendChild(createOutputRow(fmt.label, fmt.render(date)));
+  });
+}
+
+var currentDate = new Date();
+
+function clearOutputs() {
+  document.getElementById('outputList').innerHTML = '';
+  document.getElementById('templateList').innerHTML = '';
+}
+
+function onInputChange() {
+  var text = document.getElementById('inputField').value;
+  var hint = document.getElementById('detectHint');
+  if (!text) {
+    hint.textContent = '';
+    currentDate = new Date();
+    renderAll();
+    return;
+  }
+  var date = parseInput(text);
+  if (date) {
+    currentDate = date;
+    hint.textContent = '自动检测: ' + detectType(text);
+    hint.className = '';
+    renderAll();
+  } else {
+    hint.textContent = '⚠ 无法解析';
+    hint.className = 'error';
+    clearOutputs();
+  }
+}
+
+document.getElementById('inputField').addEventListener('input', onInputChange);
+
+/* === Custom Templates === */
+var DEFAULT_TEMPLATES = [
+  { format: 'yyyy-MM-dd HH:mm:ss' },
+  { format: 'yyyy/MM/dd' },
+  { format: 'ISO 8601' },
+  { format: 'RFC 2822' },
+  { format: 'UTC 字符串' },
+  { format: 'yyyy-MM-dd' },
+  { format: 'yyyy年M月d日 HH:mm:ss' },
+  { format: 'HH:mm:ss' },
+];
+
+var userTemplates = [];
+
+function renderTemplateValue(row, date, t) {
+  var valSpan = row.querySelector('.template-value');
+  var fmt = t.format;
+  var shorthand = {
+    'ISO 8601': formatISO,
+    'RFC 2822': formatRFC,
+    'UTC 字符串': formatUTC,
+  };
+  if (shorthand[fmt]) {
+    valSpan.textContent = shorthand[fmt](date);
+  } else {
+    valSpan.textContent = formatDate(date, fmt);
+  }
+}
+
+function renderTemplates(date) {
+  var list = document.getElementById('templateList');
+  list.innerHTML = '';
+  var templates = userTemplates.length > 0 ? userTemplates : DEFAULT_TEMPLATES;
+  templates.forEach(function(t, i) {
+    var row = document.createElement('div');
+    row.className = 'template-row';
+
+    var fmtSpan = document.createElement('span');
+    fmtSpan.className = 'template-format';
+    fmtSpan.textContent = t.format;
+    fmtSpan.contentEditable = true;
+    fmtSpan.addEventListener('blur', function() {
+      t.format = fmtSpan.textContent.trim() || t.format;
+      fmtSpan.textContent = t.format;
+      renderTemplateValue(row, date, t);
+      saveTemplates();
+    });
+    fmtSpan.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); fmtSpan.blur(); }
     });
 
-    function updateNow() {
-      document.getElementById("now").textContent = Math.floor(Date.now() / 1000);
-    }
-    setInterval(updateNow, 1000);
-    updateNow();
+    var valSpan = document.createElement('span');
+    valSpan.className = 'template-value';
 
-    function tsToDate() {
-      try {
-        var ts = parseInt(document.getElementById("ts").value);
-        if (ts > 1e12) ts = ts / 1000; // 毫秒转秒
-        var d = new Date(ts * 1000);
-        var str = d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
-        document.getElementById("date").value = str;
-        setResult("");
-      } catch(e) { setResult("错误: " + e.message); }
-    }
+    var copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn';
+    copyBtn.textContent = '📋';
+    copyBtn.addEventListener('click', function() {
+      copyText(valSpan.textContent, copyBtn);
+    });
 
-    function dateToTs() {
-      try {
-        var d = new Date(document.getElementById("date").value);
-        if (isNaN(d.getTime())) { setResult("无效日期"); return; }
-        document.getElementById("ts").value = Math.floor(d.getTime() / 1000);
-        setResult("");
-      } catch(e) { setResult("错误: " + e.message); }
-    }
+    var delBtn = document.createElement('button');
+    delBtn.className = 'del-btn';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', function() {
+      userTemplates.splice(i, 1);
+      renderTemplates(date);
+      saveTemplates();
+    });
 
-    function pad(n) { return n < 10 ? "0" + n : n; }
-    function setResult(msg) { document.getElementById("result").textContent = msg; }
-  </script>
+    row.appendChild(fmtSpan);
+    row.appendChild(valSpan);
+    row.appendChild(copyBtn);
+    row.appendChild(delBtn);
+    list.appendChild(row);
+
+    renderTemplateValue(row, date, t);
+  });
+}
+
+document.getElementById('addTemplateBtn').addEventListener('click', function() {
+  userTemplates.push({ format: 'yyyy-MM-dd HH:mm:ss' });
+  renderTemplates(currentDate);
+  saveTemplates();
+});
+
+function renderAll() {
+  renderFixedOutputs(currentDate);
+  renderTemplates(currentDate);
+}
+
+/* === Persistence === */
+function saveTemplates() {
+  var data = userTemplates.length > 0 ? userTemplates : null;
+  invoke('storage_set', { key: 'templates', value: data }).catch(function() {});
+}
+
+function loadTemplates() {
+  return invoke('storage_get', { key: 'templates' }).then(function(data) {
+    if (data && Array.isArray(data) && data.length > 0) {
+      userTemplates = data;
+    }
+  }).catch(function() {});
+}
+
+/* === Live Counter === */
+var liveTimer = null;
+
+function startLiveCounter() {
+  updateLiveTs();
+  liveTimer = setInterval(updateLiveTs, 1000);
+}
+
+function updateLiveTs() {
+  document.getElementById('liveTs').textContent = Math.floor(Date.now() / 1000);
+  var dot = document.getElementById('liveDot');
+  dot.style.opacity = dot.style.opacity === '1' ? '0.3' : '1';
+}
+
+/* === Message Handler === */
+window.addEventListener('message', function(e) {
+  var d = e.data;
+  if (!d || d.source !== 'action-quick-host') return;
+  if (d.type === 'aq-init-bridge' && d.script) {
+    try { eval(d.script); } catch(x) {} return;
+  }
+  if (d.type === 'plugin-params' && d.params) {
+    if (d.params.contextText) {
+      document.getElementById('inputField').value = d.params.contextText.trim();
+      onInputChange();
+    }
+    return;
+  }
+  if (d.id && pending[d.id]) {
+    var c = pending[d.id];
+    delete pending[d.id];
+    d.error ? c.reject(d.error) : c.resolve(d.result);
+  }
+});
+
+/* === Init === */
+currentDate = new Date();
+startLiveCounter();
+loadTemplates().then(function() {
+  renderAll();
+});
+</script>
 </body>
 </html>

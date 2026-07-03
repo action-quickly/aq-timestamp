@@ -1,7 +1,7 @@
 {
   "id": "aq-timestamp",
   "name": "时间戳转换",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": "ActionQuick",
   "description": "Unix 时间戳与日期互转",
   "icon": "icon.png",
