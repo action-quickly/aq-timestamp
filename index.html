@@ -79,16 +79,6 @@ body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif; background
 </div>
 
 <script>
-/* === Bridge === */
-var ipcId = 0, pending = {};
-function invoke(cmd, args) {
-  return new Promise(function(resolve, reject) {
-    var id = ++ipcId;
-    pending[id] = { resolve: resolve, reject: reject };
-    window.parent.postMessage({ source: 'action-quick-plugin', id: id, cmd: cmd, args: args || {} }, '*');
-  });
-}
-
 /* === Date Format Engine === */
 function pad(n, width) {
   width = width || 2;
@@ -202,7 +192,7 @@ var FIXED_FORMATS = [
 ];
 
 function copyText(text, btn) {
-  invoke('clipboard_write', { text: text }).then(function() {
+  aq.clipboard.write(text).then(function() {
     var orig = btn.textContent;
     btn.textContent = '✓';
     btn.classList.add('copied');
@@ -363,14 +353,14 @@ function renderAll() {
   renderTemplates(currentDate);
 }
 
-/* === Persistence === */
+/* === Persistence — 使用 aq.storage API === */
 function saveTemplates() {
   var data = userTemplates.length > 0 ? userTemplates : null;
-  invoke('storage_set', { key: 'templates', value: data }).catch(function() {});
+  aq.storage.set('templates', data).catch(function() {});
 }
 
 function loadTemplates() {
-  return invoke('storage_get', { key: 'templates' }).then(function(data) {
+  return aq.storage.get('templates').then(function(data) {
     if (data && Array.isArray(data) && data.length > 0) {
       userTemplates = data;
     }
@@ -391,24 +381,15 @@ function updateLiveTs() {
   dot.style.opacity = dot.style.opacity === '1' ? '0.3' : '1';
 }
 
-/* === Message Handler === */
+/* === 接收插件参数 — 自动填充输入框 === */
 window.addEventListener('message', function(e) {
   var d = e.data;
   if (!d || d.source !== 'action-quick-host') return;
-  if (d.type === 'aq-init-bridge' && d.script) {
-    try { eval(d.script); } catch(x) {} return;
-  }
   if (d.type === 'plugin-params' && d.params) {
     if (d.params.contextText) {
       document.getElementById('inputField').value = d.params.contextText.trim();
       onInputChange();
     }
-    return;
-  }
-  if (d.id && pending[d.id]) {
-    var c = pending[d.id];
-    delete pending[d.id];
-    d.error ? c.reject(d.error) : c.resolve(d.result);
   }
 });
 
